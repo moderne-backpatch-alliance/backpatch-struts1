@@ -394,6 +394,13 @@ public class I18nFactorySet extends FactorySet {
         String country  = locale.getCountry();
         String variant  = locale.getVariant();
 
+        // Locale's constructors do not validate, and the suffixes become part
+        // of a file name, so a session locale could otherwise select any file.
+        if (!isValidSuffixPart(language) || !isValidSuffixPart(country)
+            || !isValidSuffixPart(variant)) {
+            return suffixes;
+        }
+
         StringBuffer suffix = new StringBuffer();
         suffix.append('_');
         suffix.append(language);
@@ -415,6 +422,17 @@ public class I18nFactorySet extends FactorySet {
 
         return suffixes;
 
+    }
+
+    private static boolean isValidSuffixPart(String part) {
+        for (int i = 0; i < part.length(); i++) {
+            char c = part.charAt(i);
+            if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+                || (c >= '0' && c <= '9') || c == '_' || c == '-')) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

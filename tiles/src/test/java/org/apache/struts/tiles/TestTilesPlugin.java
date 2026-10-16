@@ -366,6 +366,27 @@ public class TestTilesPlugin extends TestMockBase {
 
   }
 
+  public void testI18nFactorySetIgnoresPathInLocale() throws Exception {
+     Map properties = new HashMap();
+     properties.put(I18nFactorySet.DEFINITIONS_CONFIG_PARAMETER_NAME,
+                    "config/I18nFactorySet-B.xml");
+     CustomI18nFactorySet i18nFactorySet = new CustomI18nFactorySet(context, properties);
+
+     Locale[] locales = {
+         new Locale("/../tiles-defs", ""),
+         new Locale("en", "US", "/../tiles-defs")
+     };
+     for (int i = 0; i < locales.length; i++) {
+         Locale locale = locales[i];
+         org.apache.struts.tiles.xmlDefinition.DefinitionsFactory factory =
+             i18nFactorySet.createFactory(locale, request, context);
+         assertNull("definition from another file for locale='" + print(locale) + "'",
+                    factory.getDefinition("doc.mainLayout", request, context));
+         assertNotNull("default definition for locale='" + print(locale) + "'",
+                       factory.getDefinition("B-DEFAULT", request, context));
+     }
+  }
+
   /**
    * String representation of a Locale. A bug in the
    * Locale.toString() method results in Locales with
