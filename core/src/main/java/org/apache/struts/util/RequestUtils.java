@@ -69,6 +69,8 @@ public class RequestUtils {
      */
     protected static Log log = LogFactory.getLog(RequestUtils.class);
 
+    private static final String[] RESERVED_PROPERTY_NAMES = { "class" };
+
     // --------------------------------------------------------- Public Methods
 
     /**
@@ -452,6 +454,10 @@ public class RequestUtils {
                     stripped.substring(0, stripped.length() - suffix.length());
             }
 
+            if (namesReservedProperty(stripped)) {
+                continue;
+            }
+
             Object parameterValue = null;
 
             if (isMultipart) {
@@ -482,6 +488,49 @@ public class RequestUtils {
                 ((ActionForm) bean).setMultipartRequestHandler(multipartHandler);
             }
         }
+    }
+
+    // Splits the name into segments the way commons-beanutils' DefaultResolver
+    // does, so a segment such as "class" is found wherever beanutils would
+    // resolve it, and mapped keys like "map(class)" are left alone.
+    private static boolean namesReservedProperty(String name) {
+        int length = name.length();
+        int start = 0;
+
+        while (start < length) {
+            int end = start;
+            int propertyEnd = -1;
+            char close = 0;
+
+            for (; end < length; end++) {
+                char c = name.charAt(end);
+
+                if (close != 0) {
+                    if (c == close) {
+                        end++;
+                        break;
+                    }
+                } else if (c == '.') {
+                    break;
+                } else if ((c == '[') || (c == '(')) {
+                    propertyEnd = end;
+                    close = (c == '[') ? ']' : ')';
+                }
+            }
+
+            String property =
+                name.substring(start, (propertyEnd < 0) ? end : propertyEnd);
+
+            for (int i = 0; i < RESERVED_PROPERTY_NAMES.length; i++) {
+                if (RESERVED_PROPERTY_NAMES[i].equalsIgnoreCase(property)) {
+                    return true;
+                }
+            }
+
+            start = ((end < length) && (name.charAt(end) == '.')) ? (end + 1) : end;
+        }
+
+        return false;
     }
 
     /**

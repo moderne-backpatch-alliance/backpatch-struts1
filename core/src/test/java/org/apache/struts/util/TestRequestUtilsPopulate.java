@@ -21,6 +21,9 @@
 
 package org.apache.struts.util;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import javax.servlet.ServletException;
 
 import junit.framework.Test;
@@ -118,6 +121,40 @@ public class TestRequestUtilsPopulate extends TestMockBase {
         assertNotNull("Multipart Handler Missing", mockForm.getMultipartRequestHandler());
         assertEquals("Mapping name has been modified", mockMappingName, mapping.getName());
 
+    }
+
+    /**
+     * Parameters whose name has a "class" segment (CVE-2014-0114) never
+     * reach the bean, while other nested names still do.
+     */
+    public void testClassSegmentIsNotPopulated() throws Exception {
+        NestedForm form = new NestedForm();
+
+        request.setMethod("GET");
+        request.addParameter("values.class", "Bad");
+        request.addParameter("values.CLASS", "Bad");
+        request.addParameter("items[0].class", "Bad");
+        request.addParameter("values.key", "Good");
+
+        RequestUtils.populate(form, request);
+
+        assertNull("values.class populated", form.getValues().get("class"));
+        assertNull("values.CLASS populated", form.getValues().get("CLASS"));
+        assertNull("items[0].class populated", form.getItems()[0].get("class"));
+        assertNotNull("values.key not populated", form.getValues().get("key"));
+    }
+
+    public static class NestedForm {
+        private final Map values = new HashMap();
+        private final Map[] items = new Map[] { new HashMap() };
+
+        public Map getValues() {
+            return values;
+        }
+
+        public Map[] getItems() {
+            return items;
+        }
     }
 
 }
