@@ -110,7 +110,7 @@ public class ValidatorForm extends ActionForm implements Serializable {
 
         Validator validator =
             Resources.initValidator(validationKey, this, application, request,
-                errors, page);
+                errors, Resources.determineValidationPage(mapping, page));
 
         try {
             validatorResults = validator.validate();

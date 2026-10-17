@@ -30,6 +30,7 @@ import org.apache.commons.validator.ValidatorAction;
 import org.apache.commons.validator.ValidatorResources;
 import org.apache.commons.validator.Var;
 import org.apache.struts.Globals;
+import org.apache.struts.action.ActionMapping;
 import org.apache.struts.action.ActionMessage;
 import org.apache.struts.action.ActionMessages;
 import org.apache.struts.config.ModuleConfig;
@@ -480,6 +481,27 @@ public class Resources {
         }
 
         return values;
+    }
+
+    // The page comes from the request. Below 0 it would skip every field
+    // without a page attribute; an action with an "acceptPage" property
+    // (<set-property key="acceptPage" value="n"/>) raises it to n.
+    static int determineValidationPage(ActionMapping mapping, int page) {
+        String acceptPage =
+            (mapping == null) ? null : mapping.getProperty("acceptPage");
+
+        if (acceptPage == null) {
+            return Math.max(page, 0);
+        }
+
+        try {
+            return Math.max(page, Integer.parseInt(acceptPage.trim()));
+        } catch (NumberFormatException e) {
+            log.error("acceptPage of action " + mapping.getPath()
+                + " is not a number, validating every page");
+
+            return Integer.MAX_VALUE;
+        }
     }
 
     /**
