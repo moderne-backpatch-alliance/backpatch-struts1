@@ -35,6 +35,7 @@ import org.apache.struts.Globals;
 import org.apache.struts.mock.TestMockBase;
 import org.apache.struts.mock.MockFormBean;
 import org.apache.struts.mock.MockMultipartRequestHandler;
+import org.apache.struts.upload.MultipartRequestHandler;
 
 /**
  * Unit tests for the RequestUtil's <code>populate</code> method.
@@ -142,6 +143,45 @@ public class TestRequestUtilsPopulate extends TestMockBase {
         assertNull("values.CLASS populated", form.getValues().get("CLASS"));
         assertNull("items[0].class populated", form.getItems()[0].get("class"));
         assertNotNull("values.key not populated", form.getValues().get("key"));
+    }
+
+    /**
+     * A "multipartRequestHandler" segment (CVE-2016-1181) never reaches the
+     * handler a concurrent request has set on a session-scoped form.
+     */
+    public void testMultipartRequestHandlerSegmentIsNotPopulated()
+        throws Exception {
+        ActionMapping mapping = new ActionMapping();
+        mapping.setName("mockMapping");
+
+        MockMultipartRequestHandler otherHandler =
+            new MockMultipartRequestHandler();
+        otherHandler.setMapping(mapping);
+
+        SharedHandlerForm form = new SharedHandlerForm(otherHandler);
+
+        request.setMethod("GET");
+        request.addParameter("multipartRequestHandler.mapping.name", "Bad");
+        request.addParameter("stringProperty", "Good");
+
+        RequestUtils.populate(form, request);
+
+        assertEquals("Mapping name has been modified", "mockMapping",
+            mapping.getName());
+        assertEquals("stringProperty not populated", "Good",
+            form.getStringProperty());
+    }
+
+    public static class SharedHandlerForm extends MockFormBean {
+        private final MultipartRequestHandler sharedHandler;
+
+        public SharedHandlerForm(MultipartRequestHandler sharedHandler) {
+            this.sharedHandler = sharedHandler;
+        }
+
+        public MultipartRequestHandler getMultipartRequestHandler() {
+            return sharedHandler;
+        }
     }
 
     public static class NestedForm {
