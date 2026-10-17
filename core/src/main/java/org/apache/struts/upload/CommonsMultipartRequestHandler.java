@@ -70,6 +70,8 @@ public class CommonsMultipartRequestHandler implements MultipartRequestHandler {
      */
     public static final int DEFAULT_SIZE_THRESHOLD = 256 * 1024;
 
+    private static final long DEFAULT_STRING_MAX = 256 * 1024;
+
     // ----------------------------------------------------- Instance Variables
 
     /**
@@ -196,13 +198,22 @@ public class CommonsMultipartRequestHandler implements MultipartRequestHandler {
         }
 
         // Partition the items into form fields and files.
+        long maxStringLength = getMaxStringLength(ac);
         Iterator iter = items.iterator();
 
         while (iter.hasNext()) {
             FileItem item = (FileItem) iter.next();
 
             if (item.isFormField()) {
-                addTextParameter(request, item);
+                // Check getSize() first: reading the value holds the whole
+                // field in memory, however large the request allowed it to be.
+                if (item.getSize() > maxStringLength) {
+                    item.delete();
+                    request.setAttribute(MultipartRequestHandler.ATTRIBUTE_MAX_LENGTH_EXCEEDED,
+                        Boolean.TRUE);
+                } else {
+                    addTextParameter(request, item);
+                }
             } else {
                 addFileParameter(item);
             }
@@ -290,6 +301,17 @@ public class CommonsMultipartRequestHandler implements MultipartRequestHandler {
     protected long getSizeThreshold(ModuleConfig mc) {
         return convertSizeToBytes(mc.getControllerConfig().getMemFileSize(),
             DEFAULT_SIZE_THRESHOLD);
+    }
+
+    long getMaxStringLength(ModuleConfig mc) {
+        String maxStringLength =
+            mc.getControllerConfig().getProperty("maxStringLength");
+
+        if (maxStringLength == null) {
+            return DEFAULT_STRING_MAX;
+        }
+
+        return convertSizeToBytes(maxStringLength, DEFAULT_STRING_MAX);
     }
 
     /**
