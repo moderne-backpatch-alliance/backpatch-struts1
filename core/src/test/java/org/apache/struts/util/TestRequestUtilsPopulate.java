@@ -29,6 +29,8 @@ import javax.servlet.ServletException;
 import junit.framework.Test;
 import junit.framework.TestSuite;
 
+import org.apache.commons.validator.Field;
+import org.apache.commons.validator.ValidatorResults;
 import org.apache.struts.action.ActionMapping;
 import org.apache.struts.util.RequestUtils;
 import org.apache.struts.Globals;
@@ -36,6 +38,7 @@ import org.apache.struts.mock.TestMockBase;
 import org.apache.struts.mock.MockFormBean;
 import org.apache.struts.mock.MockMultipartRequestHandler;
 import org.apache.struts.upload.MultipartRequestHandler;
+import org.apache.struts.validator.ValidatorForm;
 
 /**
  * Unit tests for the RequestUtil's <code>populate</code> method.
@@ -170,6 +173,61 @@ public class TestRequestUtilsPopulate extends TestMockBase {
             mapping.getName());
         assertEquals("stringProperty not populated", "Good",
             form.getStringProperty());
+    }
+
+    /**
+     * A "validatorResults" segment (CVE-2016-1182) never reaches the
+     * validation results or the validator configuration they point to.
+     */
+    public void testValidatorResultsSegmentIsNotPopulated() throws Exception {
+        Field field = new Field();
+        field.setProperty("name");
+        field.setKey("name");
+
+        ValidatorForm form = validatedForm(field, new MockFormBean("Good"));
+
+        request.setMethod("GET");
+        request.addParameter("validatorResults.validatorResult(name).field.page",
+            "5");
+        request.addParameter("page", "1");
+
+        RequestUtils.populate(form, request);
+
+        assertEquals("Field page has been modified", 0, field.getPage());
+        assertEquals("page not populated", 1, form.getPage());
+    }
+
+    /**
+     * A "resultValueMap" segment (CVE-2016-1182) never reaches the values
+     * the validators returned.
+     */
+    public void testResultValueMapSegmentIsNotPopulated() throws Exception {
+        Field field = new Field();
+        field.setProperty("name");
+        field.setKey("name");
+
+        MockFormBean value = new MockFormBean("Good");
+        ValidatorForm form = validatedForm(field, value);
+
+        request.setMethod("GET");
+        request.addParameter("resultValueMap.name.stringProperty", "Bad");
+        request.addParameter("page", "1");
+
+        RequestUtils.populate(form, request);
+
+        assertEquals("Result value has been modified", "Good",
+            value.getStringProperty());
+        assertEquals("page not populated", 1, form.getPage());
+    }
+
+    private ValidatorForm validatedForm(Field field, Object resultValue) {
+        ValidatorResults results = new ValidatorResults();
+        results.add(field, "required", true, resultValue);
+
+        ValidatorForm form = new ValidatorForm();
+        form.setValidatorResults(results);
+
+        return form;
     }
 
     public static class SharedHandlerForm extends MockFormBean {

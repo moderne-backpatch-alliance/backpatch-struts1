@@ -70,7 +70,8 @@ public class RequestUtils {
     protected static Log log = LogFactory.getLog(RequestUtils.class);
 
     private static final String[] RESERVED_PROPERTY_NAMES =
-        { "class", "multipartRequestHandler" };
+        { "class", "multipartRequestHandler", "resultValueMap",
+            "validatorResults" };
 
     // --------------------------------------------------------- Public Methods
 
