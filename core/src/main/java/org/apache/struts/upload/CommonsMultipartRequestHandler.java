@@ -20,6 +20,8 @@
  */
 package org.apache.struts.upload;
 
+import org.apache.commons.fileupload.DefaultFileItem;
+import org.apache.commons.fileupload.DefaultFileItemFactory;
 import org.apache.commons.fileupload.DiskFileUpload;
 import org.apache.commons.fileupload.disk.DiskFileItem;
 import org.apache.commons.fileupload.FileItem;
@@ -37,8 +39,10 @@ import javax.servlet.http.HttpServletRequest;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
 
 import java.util.ArrayList;
@@ -71,6 +75,8 @@ public class CommonsMultipartRequestHandler implements MultipartRequestHandler {
     public static final int DEFAULT_SIZE_THRESHOLD = 256 * 1024;
 
     private static final long DEFAULT_STRING_MAX = 256 * 1024;
+
+    private static final long DEFAULT_TOTAL_STRING_MAX = 2 * 1024 * 1024;
 
     // ----------------------------------------------------- Instance Variables
 
@@ -161,7 +167,9 @@ public class CommonsMultipartRequestHandler implements MultipartRequestHandler {
             (ModuleConfig) request.getAttribute(Globals.MODULE_KEY);
 
         // Create and configure a DIskFileUpload instance.
-        DiskFileUpload upload = new DiskFileUpload();
+        DiskFileUpload upload =
+            new DiskFileUpload(new TextLimitFileItemFactory(
+                    getMaxTotalStringLength(ac)));
 
         // The following line is to support an "EncodingFilter"
         // see http://issues.apache.org/bugzilla/show_bug.cgi?id=23255
@@ -207,7 +215,9 @@ public class CommonsMultipartRequestHandler implements MultipartRequestHandler {
             if (item.isFormField()) {
                 // Check getSize() first: reading the value holds the whole
                 // field in memory, however large the request allowed it to be.
-                if (item.getSize() > maxStringLength) {
+                if (((item instanceof TextFileItem)
+                        && ((TextFileItem) item).overTotal)
+                    || (item.getSize() > maxStringLength)) {
                     item.delete();
                     request.setAttribute(MultipartRequestHandler.ATTRIBUTE_MAX_LENGTH_EXCEEDED,
                         Boolean.TRUE);
@@ -312,6 +322,18 @@ public class CommonsMultipartRequestHandler implements MultipartRequestHandler {
         }
 
         return convertSizeToBytes(maxStringLength, DEFAULT_STRING_MAX);
+    }
+
+    long getMaxTotalStringLength(ModuleConfig mc) {
+        String maxTotalStringLength =
+            mc.getControllerConfig().getProperty("maxTotalStringLength");
+
+        if (maxTotalStringLength == null) {
+            return DEFAULT_TOTAL_STRING_MAX;
+        }
+
+        return convertSizeToBytes(maxTotalStringLength,
+            DEFAULT_TOTAL_STRING_MAX);
     }
 
     /**
@@ -660,6 +682,75 @@ public class CommonsMultipartRequestHandler implements MultipartRequestHandler {
          */
         public String toString() {
             return getFileName();
+        }
+    }
+
+    // Text fields of one request share one byte budget while they are parsed,
+    // so the many small fields that stay in memory are bounded in total too.
+    private static final class TextLimitFileItemFactory
+        extends DefaultFileItemFactory {
+        private long remaining;
+
+        TextLimitFileItemFactory(long maxTotalStringLength) {
+            this.remaining = maxTotalStringLength;
+        }
+
+        public FileItem createItem(String fieldName, String contentType,
+            boolean isFormField, String fileName) {
+            if (!isFormField) {
+                return super.createItem(fieldName, contentType, isFormField,
+                    fileName);
+            }
+
+            return new TextFileItem(fieldName, contentType, fileName,
+                getSizeThreshold(), getRepository(), this);
+        }
+    }
+
+    private static final class TextFileItem extends DefaultFileItem {
+        private final transient TextLimitFileItemFactory budget;
+
+        private boolean overTotal;
+
+        TextFileItem(String fieldName, String contentType, String fileName,
+            int sizeThreshold, File repository,
+            TextLimitFileItemFactory budget) {
+            super(fieldName, contentType, true, fileName, sizeThreshold,
+                repository);
+            this.budget = budget;
+        }
+
+        public OutputStream getOutputStream() throws IOException {
+            OutputStream out = super.getOutputStream();
+
+            return (budget == null) ? out : new BudgetOutputStream(out);
+        }
+
+        // Bytes past the budget are dropped, never stored: the item is then
+        // deleted and flagged in handleRequest.
+        private final class BudgetOutputStream extends FilterOutputStream {
+            BudgetOutputStream(OutputStream out) {
+                super(out);
+            }
+
+            public void write(int b) throws IOException {
+                write(new byte[] { (byte) b }, 0, 1);
+            }
+
+            public void write(byte[] b, int off, int len) throws IOException {
+                if (overTotal) {
+                    return;
+                }
+
+                if (len > budget.remaining) {
+                    overTotal = true;
+
+                    return;
+                }
+
+                budget.remaining -= len;
+                out.write(b, off, len);
+            }
         }
     }
 }

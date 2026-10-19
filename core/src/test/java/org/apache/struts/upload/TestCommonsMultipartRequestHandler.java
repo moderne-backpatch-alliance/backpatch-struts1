@@ -98,6 +98,98 @@ public class TestCommonsMultipartRequestHandler extends TestCase {
         assertEquals(256 * 1024, request.getParameter("under").length());
     }
 
+    public void testTextFieldsOverConfiguredTotalAreSkippedAndFlagged()
+        throws Exception {
+        moduleConfig.getControllerConfig().setProperty("maxTotalStringLength",
+            "4K");
+
+        for (int i = 0; i < 5; i++) {
+            addTextPart("field" + i, 1000);
+        }
+
+        addFilePart("upload", "acme.txt", 8192);
+
+        MultipartRequestWrapper request = handle();
+
+        assertEquals(Boolean.TRUE,
+            request.getAttribute(MultipartRequestHandler.ATTRIBUTE_MAX_LENGTH_EXCEEDED));
+
+        for (int i = 0; i < 4; i++) {
+            assertEquals(1000, request.getParameter("field" + i).length());
+        }
+
+        assertNull(request.getParameter("field4"));
+        assertFalse(handler.getTextElements().containsKey("field4"));
+        assertFalse(handler.getAllElements().containsKey("field4"));
+        assertEquals(8192,
+            ((FormFile) handler.getFileElements().get("upload")).getFileSize());
+    }
+
+    public void testTextFieldsExactlyAtConfiguredTotalAreNotFlagged()
+        throws Exception {
+        moduleConfig.getControllerConfig().setProperty("maxTotalStringLength",
+            "4K");
+
+        for (int i = 0; i < 4; i++) {
+            addTextPart("field" + i, 1024);
+        }
+
+        MultipartRequestWrapper request = handle();
+
+        assertNull(request.getAttribute(MultipartRequestHandler.ATTRIBUTE_MAX_LENGTH_EXCEEDED));
+
+        for (int i = 0; i < 4; i++) {
+            assertEquals(1024, request.getParameter("field" + i).length());
+        }
+    }
+
+    public void testDefaultTotalLimitIs2M() throws Exception {
+        for (int i = 0; i < 8; i++) {
+            addTextPart("field" + i, 256 * 1024);
+        }
+
+        addTextPart("last", 1);
+
+        MultipartRequestWrapper request = handle();
+
+        assertEquals(Boolean.TRUE,
+            request.getAttribute(MultipartRequestHandler.ATTRIBUTE_MAX_LENGTH_EXCEEDED));
+
+        for (int i = 0; i < 8; i++) {
+            assertEquals(256 * 1024, request.getParameter("field" + i).length());
+        }
+
+        assertNull(request.getParameter("last"));
+    }
+
+    public void testFormExactlyAtDefaultTotalIsNotFlagged() throws Exception {
+        for (int i = 0; i < 8; i++) {
+            addTextPart("field" + i, 256 * 1024);
+        }
+
+        MultipartRequestWrapper request = handle();
+
+        assertNull(request.getAttribute(MultipartRequestHandler.ATTRIBUTE_MAX_LENGTH_EXCEEDED));
+
+        for (int i = 0; i < 8; i++) {
+            assertEquals(256 * 1024, request.getParameter("field" + i).length());
+        }
+    }
+
+    public void testOrdinaryFormIsNotFlagged() throws Exception {
+        addTextPart("name", 20);
+        addTextPart("comment", 4000);
+        addFilePart("upload", "acme.txt", 300 * 1024);
+
+        MultipartRequestWrapper request = handle();
+
+        assertNull(request.getAttribute(MultipartRequestHandler.ATTRIBUTE_MAX_LENGTH_EXCEEDED));
+        assertEquals(20, request.getParameter("name").length());
+        assertEquals(4000, request.getParameter("comment").length());
+        assertEquals(300 * 1024,
+            ((FormFile) handler.getFileElements().get("upload")).getFileSize());
+    }
+
     private MultipartRequestWrapper handle() throws Exception {
         write("--" + BOUNDARY + "--\r\n");
 
