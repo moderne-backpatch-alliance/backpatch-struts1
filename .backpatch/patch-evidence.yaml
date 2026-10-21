@@ -1,6 +1,6 @@
 schema: osera-patch-evidence/0.1.0
 producer: moderne
-release: 1.3.10.1-backpatch-00004
+release: 1.3.10.1-backpatch-00005
 baseline: v1.3.10+backpatch.baseline
 fixes:
   - cve: CVE-2023-49735
@@ -34,12 +34,20 @@ fixes:
     basis: original
     artifacts:
       - org.apache.struts:struts-core
-    note: New in this release; written for 1.3.10; fixed at 1.3.10.1-backpatch-00004 (backpatch-struts1@80332c6).
+    note: Carried from 1.3.10.1-backpatch-00004.
+  - cve: CVE-2016-1182
+    advisory_url: https://nvd.nist.gov/vuln/detail/CVE-2016-1182
+    patch_commit_url: https://github.com/moderne-backpatch-alliance/backpatch-struts1/commit/e17ca85
+    not_applicable_rationale: a provider-developed fix; no upstream-authored code to credit
+    basis: original
+    artifacts:
+      - org.apache.struts:struts-core
+    note: New in this release; written for 1.3.10; fixed at 1.3.10.1-backpatch-00005 (backpatch-struts1@e17ca85).
 tests:
-  commit: 80332c69846972fa0930b6f83f585afff33a3aaa
+  commit: e17ca857d8b690caa625d67834548c5dc817ba2d
   command: JAVA_HOME=<jdk-8> /bin/bash <alliance>/work/wave2/items/scripts/maven-forked-javac.sh suite <m2>  <alliance>/work/wave2/items/scripts/javac6-in-container.sh --fork-pom=pom.xml -pl core,tiles -am -Djvm=<sdkman>/java/8.0.382-zulu/bin/java
   runtime: Azul Zulu (Java 1.8.0_382), Apache Maven 3.9.16, main classes compiled by Zulu 6u42 javac in a linux/amd64 container, macOS aarch64
-  report: struts-core-1.3.10.1-backpatch-00004-tests.zip
-  report_sha256: 02f94f1faccd09d04e7f69c25a460b0d31e5d272fca35a59d402ac9c33c09a57
+  report: struts-core-1.3.10.1-backpatch-00005-tests.zip
+  report_sha256: 62dbbf688d61b619e2352f0ccdf5b0ec81d42985aabeec3314d8bf43ec5d03d7
   result: pass
-  note: the full suite at the tested commit, 213 tests run, 0 failed, 0 skipped; the regression tests for CVE-2016-1181 are TestRequestUtilsPopulate
+  note: the full suite at the tested commit, 215 tests run, 0 failed, 0 skipped; the regression tests for CVE-2016-1182 are TestRequestUtilsPopulate
