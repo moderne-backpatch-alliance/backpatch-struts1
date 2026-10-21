@@ -1,6 +1,6 @@
 schema: osera-patch-evidence/0.1.0
 producer: moderne
-release: 1.3.10.1-backpatch-00001
+release: 1.3.10.1-backpatch-00002
 baseline: v1.3.10+backpatch.baseline
 fixes:
   - cve: CVE-2023-49735
@@ -10,12 +10,20 @@ fixes:
     basis: original
     artifacts:
       - org.apache.struts:struts-tiles
-    note: New in this release; written for 1.3.10; fixed at 1.3.10.1-backpatch-00001 (backpatch-struts1@a8f408f).
+    note: Carried from 1.3.10.1-backpatch-00001.
+  - cve: CVE-2023-34396
+    advisory_url: https://nvd.nist.gov/vuln/detail/CVE-2023-34396
+    patch_commit_url: https://github.com/moderne-backpatch-alliance/backpatch-struts1/compare/10cb1d0~1...96cf222
+    not_applicable_rationale: a provider-developed fix; no upstream-authored code to credit
+    basis: original
+    artifacts:
+      - org.apache.struts:struts-core
+    note: New in this release; written for 1.3.10; fixed at 1.3.10.1-backpatch-00002 (backpatch-struts1@10cb1d0..96cf222).
 tests:
-  commit: a8f408f28216b4009702b68de89a679f84e37dcf
+  commit: 96cf222e12dba1284e2d64eff9896226630f8f8b
   command: JAVA_HOME=<jdk-8> /bin/bash <alliance>/work/wave2/items/scripts/maven-forked-javac.sh suite <m2>  <alliance>/work/wave2/items/scripts/javac6-in-container.sh --fork-pom=pom.xml -pl core,tiles -am -Djvm=<sdkman>/java/8.0.382-zulu/bin/java
   runtime: Azul Zulu (Java 1.8.0_382), Apache Maven 3.9.16, main classes compiled by Zulu 6u42 javac in a linux/amd64 container, macOS aarch64
-  report: struts-tiles-1.3.10.1-backpatch-00001-tests.zip
-  report_sha256: 6536751900ecc8054e9091d358e16e9f2f312d950d5ae56356bc5526656d9aeb
+  report: struts-core-1.3.10.1-backpatch-00002-tests.zip
+  report_sha256: 50b562a234a924ad29e83bc4f9e53e95bd33ec98f27d917276a611b40a564792
   result: pass
-  note: the full suite at the tested commit, 201 tests run, 0 failed, 0 skipped; the regression tests for CVE-2023-49735 are TestTilesPlugin
+  note: the full suite at the tested commit, 209 tests run, 0 failed, 0 skipped; the regression tests for CVE-2023-34396 are TestCommonsMultipartRequestHandler
